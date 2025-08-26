@@ -24,25 +24,48 @@ export default async function handler(req, res) {
     const BASE_URL = 'https://services.leadconnectorhq.com';
     const VERSION = '2021-07-28';
     
-    // Extract location_id from JWT token
+    // Check if it's a Private Integration Token (starts with 'pit-')
     let locationId;
-    try {
-      const payload = JSON.parse(atob(apiKey.split('.')[1]));
-      locationId = payload.location_id;
-    } catch (e) {
-      return res.status(400).json({ error: 'Invalid API key format' });
+    if (apiKey.startsWith('pit-')) {
+      // For Private Integration Tokens, we need to get locationId from request or use a default
+      // For now, let's try without locationId and see what locations are available
+      locationId = req.query.locationId || null;
+    } else {
+      // Extract location_id from JWT token
+      try {
+        const payload = JSON.parse(atob(apiKey.split('.')[1]));
+        locationId = payload.location_id;
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid API key format' });
+      }
     }
     
     let ghlUrl;
     switch (endpoint) {
       case 'contacts':
-        ghlUrl = `${BASE_URL}/contacts/?locationId=${locationId}`;
+        if (locationId) {
+          ghlUrl = `${BASE_URL}/contacts/?locationId=${locationId}`;
+        } else {
+          // Try to get locations first
+          ghlUrl = `${BASE_URL}/locations/search`;
+        }
+        break;
+      case 'locations':
+        ghlUrl = `${BASE_URL}/locations/search`;
         break;
       case 'calendars':
-        ghlUrl = `${BASE_URL}/calendars/?locationId=${locationId}`;
+        if (locationId) {
+          ghlUrl = `${BASE_URL}/calendars/?locationId=${locationId}`;
+        } else {
+          return res.status(400).json({ error: 'Location ID required for calendars' });
+        }
         break;
       case 'appointments':
-        ghlUrl = `${BASE_URL}/calendars/events/?locationId=${locationId}`;
+        if (locationId) {
+          ghlUrl = `${BASE_URL}/calendars/events/?locationId=${locationId}`;
+        } else {
+          return res.status(400).json({ error: 'Location ID required for appointments' });
+        }
         break;
       default:
         return res.status(400).json({ error: 'Invalid endpoint' });
