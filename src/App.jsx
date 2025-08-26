@@ -21,9 +21,20 @@ function App() {
         headers: { 'x-api-key': apiKey }
       })
       
+      let errorData;
+      try {
+        errorData = await response.json()
+      } catch (e) {
+        errorData = { error: 'Uventet fejl fra serveren' }
+      }
+      
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Ugyldig API key')
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
+      }
+      
+      // Check if we got valid data
+      if (!errorData || typeof errorData !== 'object') {
+        throw new Error('Ugyldig response fra GoHighLevel API')
       }
       
       setAuth({
@@ -34,10 +45,11 @@ function App() {
         error: null
       })
     } catch (error) {
+      console.error('Login error:', error)
       setAuth(prev => ({
         ...prev,
         loading: false,
-        error: error.message
+        error: error.message || 'Ukendt fejl opstod'
       }))
     }
   }
