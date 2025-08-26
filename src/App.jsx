@@ -8,16 +8,17 @@ function App() {
     isAuthenticated: false,
     apiKey: null,
     proxyUrl: null,
+    locationId: null,
     loading: false,
     error: null
   })
 
-  const handleLogin = async (apiKey, proxyUrl) => {
+  const handleLogin = async (apiKey, proxyUrl, locationId) => {
     setAuth(prev => ({ ...prev, loading: true, error: null }))
     
     try {
-      // Test API connection using serverless function
-      const response = await fetch(`${proxyUrl}?endpoint=locations`, {
+      // Test API connection using serverless function with location ID
+      const response = await fetch(`${proxyUrl}?endpoint=contacts&locationId=${locationId}`, {
         headers: { 'x-api-key': apiKey }
       })
       
@@ -41,6 +42,7 @@ function App() {
         isAuthenticated: true,
         apiKey,
         proxyUrl,
+        locationId,
         loading: false,
         error: null
       })
@@ -59,6 +61,7 @@ function App() {
       isAuthenticated: false,
       apiKey: null,
       proxyUrl: null,
+      locationId: null,
       loading: false,
       error: null
     })
@@ -69,6 +72,7 @@ function App() {
       <Dashboard
         apiKey={auth.apiKey}
         proxyUrl={auth.proxyUrl}
+        locationId={auth.locationId}
         onLogout={handleLogout}
       />
     )

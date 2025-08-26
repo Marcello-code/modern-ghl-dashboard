@@ -9,14 +9,15 @@ import { motion } from 'framer-motion'
 
 export function LoginForm({ onLogin, isLoading, error }) {
   const [apiKey, setApiKey] = useState('')
+  const [locationId, setLocationId] = useState('')
   
   // Use Vercel serverless function for proxy
   const PROXY_URL = '/api/ghl-proxy'
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (apiKey.trim()) {
-      onLogin(apiKey.trim(), PROXY_URL)
+    if (apiKey.trim() && locationId.trim()) {
+      onLogin(apiKey.trim(), PROXY_URL, locationId.trim())
     }
   }
 
@@ -69,6 +70,25 @@ export function LoginForm({ onLogin, isLoading, error }) {
                 </p>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="locationId" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  Location ID
+                </Label>
+                <Input
+                  id="locationId"
+                  type="text"
+                  placeholder="Indtast din GHL location ID..."
+                  value={locationId}
+                  onChange={(e) => setLocationId(e.target.value)}
+                  className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
+                  required
+                />
+                <p className="text-xs text-gray-500">
+                  Find din Location ID i GHL under Settings → Company
+                </p>
+              </div>
+
               {error && (
                 <Alert className="border-red-200 bg-red-50">
                   <AlertDescription className="text-red-700">
@@ -80,7 +100,7 @@ export function LoginForm({ onLogin, isLoading, error }) {
               <Button
                 type="submit"
                 className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
-                disabled={isLoading || !apiKey.trim()}
+                disabled={isLoading || !apiKey.trim() || !locationId.trim()}
               >
                 {isLoading ? (
                   <>
