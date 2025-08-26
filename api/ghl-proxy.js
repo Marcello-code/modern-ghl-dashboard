@@ -98,6 +98,51 @@ export default async function handler(req, res) {
       return res.status(response.status).json(data);
     }
 
+    // Handle pagination for contacts endpoint
+    if (endpoint === 'contacts' && data.contacts && data.meta && data.meta.nextPageUrl) {
+      let allContacts = [...data.contacts];
+      let nextPageUrl = data.meta.nextPageUrl;
+      
+      // Fetch all pages (limit to 10 pages to prevent infinite loops)
+      let pageCount = 1;
+      while (nextPageUrl && pageCount < 10) {
+        try {
+          const nextResponse = await fetch(nextPageUrl, {
+            method: 'GET',
+            headers: headers
+          });
+          
+          if (nextResponse.ok) {
+            const nextData = await nextResponse.json();
+            if (nextData.contacts && nextData.contacts.length > 0) {
+              allContacts = [...allContacts, ...nextData.contacts];
+              nextPageUrl = nextData.meta?.nextPageUrl;
+              pageCount++;
+            } else {
+              break;
+            }
+          } else {
+            break;
+          }
+        } catch (error) {
+          console.error('Pagination error:', error);
+          break;
+        }
+      }
+      
+      // Return all contacts with updated meta
+      return res.status(200).json({
+        ...data,
+        contacts: allContacts,
+        meta: {
+          ...data.meta,
+          total: allContacts.length,
+          currentPage: 1,
+          nextPageUrl: null // No more pages since we fetched all
+        }
+      });
+    }
+
     return res.status(200).json(data);
 
   } catch (error) {
