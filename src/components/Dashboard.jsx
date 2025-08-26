@@ -64,28 +64,59 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
     setData(prev => ({ ...prev, loading: true }))
     
     try {
+      const periodDays = parseInt(selectedPeriod)
+      const periodStart = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000)
+      
       // Fetch contacts data
-      const response = await fetch(
+      const contactsResponse = await fetch(
         `${proxyUrl}?endpoint=contacts&locationId=${locationId}`,
         { headers: { 'x-api-key': apiKey } }
       )
       
-      if (!response.ok) {
+      if (!contactsResponse.ok) {
         throw new Error('Kunne ikke hente contacts data')
       }
       
-      const result = await response.json()
-      const contacts = result.contacts || []
+      const contactsResult = await contactsResponse.json()
+      const contacts = contactsResult.contacts || []
       
-      // Calculate metrics from contacts data based on selected period
-      const periodDays = parseInt(selectedPeriod)
-      const periodStart = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000)
+      // Fetch appointments data
+      let appointments = []
+      try {
+        const appointmentsResponse = await fetch(
+          `${proxyUrl}?endpoint=appointments&locationId=${locationId}`,
+          { headers: { 'x-api-key': apiKey } }
+        )
+        if (appointmentsResponse.ok) {
+          const appointmentsResult = await appointmentsResponse.json()
+          appointments = appointmentsResult.appointments || appointmentsResult.events || []
+        }
+      } catch (error) {
+        console.warn('Could not fetch appointments:', error)
+      }
       
+      // Calculate metrics based on selected period
       const totalContacts = contacts.length
       const uniqueContacts = new Set(contacts.map(c => c.id)).size
-      const recentContacts = contacts.filter(c => {
+      
+      // New contacts in period (sent messages to)
+      const newContactsInPeriod = contacts.filter(c => {
         const addedDate = new Date(c.dateAdded)
         return addedDate > periodStart
+      }).length
+      
+      // Conversations (contacts who have replied - look for contacts with recent activity)
+      const conversationsCount = contacts.filter(c => {
+        const updatedDate = new Date(c.dateUpdated)
+        const addedDate = new Date(c.dateAdded)
+        // If updated date is significantly after added date, they likely replied
+        return updatedDate > addedDate && updatedDate > periodStart
+      }).length
+      
+      // Appointments booked in period
+      const appointmentsInPeriod = appointments.filter(apt => {
+        const aptDate = new Date(apt.startTime || apt.dateAdded || apt.createdAt)
+        return aptDate > periodStart
       }).length
       
       // Generate chart data from contacts for selected period
@@ -94,9 +125,9 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
       setData(prev => ({
         ...prev,
         metrics: {
-          uniqueMessagedContacts: uniqueContacts,
-          totalConversations: totalContacts,
-          outboundMessages: recentContacts
+          uniqueMessagedContacts: newContactsInPeriod, // New contacts messaged
+          totalConversations: conversationsCount, // People who replied
+          outboundMessages: appointmentsInPeriod // Meetings booked
         },
         chartData,
         loading: false,
@@ -158,9 +189,9 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
 
   const kpiCards = [
     {
-      title: 'Unikke Kontakter',
+      title: 'Nye Kontakter',
       value: data.metrics?.uniqueMessagedContacts || 0,
-      description: 'Total antal kontakter',
+      description: `Sendt beskeder til (${timePeriods.find(p => p.value === selectedPeriod)?.label.toLowerCase()})`,
       icon: Users,
       color: 'from-blue-500 to-blue-600',
       bgColor: 'bg-blue-50',
@@ -169,17 +200,17 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
     {
       title: 'Samtaler',
       value: data.metrics?.totalConversations || 0,
-      description: 'Total antal kontakter',
+      description: `Folk der har svaret (${timePeriods.find(p => p.value === selectedPeriod)?.label.toLowerCase()})`,
       icon: MessageCircle,
       color: 'from-green-500 to-green-600',
       bgColor: 'bg-green-50',
       textColor: 'text-green-700'
     },
     {
-      title: 'Beskeder Sendt',
+      title: 'Møder Booket',
       value: data.metrics?.outboundMessages || 0,
-      description: `Nye kontakter (${timePeriods.find(p => p.value === selectedPeriod)?.label.toLowerCase()})`,
-      icon: TrendingUp,
+      description: `Aftaler oprettet (${timePeriods.find(p => p.value === selectedPeriod)?.label.toLowerCase()})`,
+      icon: Calendar,
       color: 'from-purple-500 to-purple-600',
       bgColor: 'bg-purple-50',
       textColor: 'text-purple-700'
@@ -314,7 +345,7 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
                 Aktivitet Over Tid
               </CardTitle>
               <CardDescription>
-                Daglig oversigt over nye kontakter ({timePeriods.find(p => p.value === selectedPeriod)?.label.toLowerCase()})
+                Daglig oversigt over nye kontakter og aktivitet ({timePeriods.find(p => p.value === selectedPeriod)?.label.toLowerCase()})
               </CardDescription>
             </CardHeader>
             <CardContent>
