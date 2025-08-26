@@ -17,10 +17,10 @@ import {
 import { motion } from 'framer-motion'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 
-export function Dashboard({ apiKey, proxyUrl, onLogout }) {
+export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
   const [data, setData] = useState({
     locations: [],
-    selectedLocation: null,
+    selectedLocation: { id: locationId, name: 'Current Location' },
     metrics: null,
     chartData: [],
     loading: true,
@@ -29,28 +29,16 @@ export function Dashboard({ apiKey, proxyUrl, onLogout }) {
 
   const fetchLocations = async () => {
     try {
-      const response = await fetch(`${proxyUrl}/locations`, {
-        headers: { 'x-api-key': apiKey }
-      })
-      
-      if (!response.ok) {
-        throw new Error('Kunne ikke hente locations')
-      }
-      
-      const result = await response.json()
-      const locations = result.items || []
-      
+      // Skip locations fetch since we have locationId directly
       setData(prev => ({
         ...prev,
-        locations,
-        selectedLocation: locations[0] || null,
+        locations: [{ id: locationId, name: 'Current Location' }],
+        selectedLocation: { id: locationId, name: 'Current Location' },
         loading: false
       }))
       
-      // Auto-select første location og hent data
-      if (locations[0]) {
-        fetchMetrics(locations[0].id)
-      }
+      // Fetch data for the provided location ID
+      fetchMetrics(locationId)
     } catch (error) {
       setData(prev => ({
         ...prev,
@@ -66,24 +54,39 @@ export function Dashboard({ apiKey, proxyUrl, onLogout }) {
     setData(prev => ({ ...prev, loading: true }))
     
     try {
-      const endDate = new Date().toISOString().split('T')[0]
-      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      
+      // Fetch contacts data
       const response = await fetch(
-        `${proxyUrl}/ai-metrics?locationId=${locationId}&from=${startDate}&to=${endDate}`,
+        `${proxyUrl}?endpoint=contacts&locationId=${locationId}`,
         { headers: { 'x-api-key': apiKey } }
       )
       
       if (!response.ok) {
-        throw new Error('Kunne ikke hente metrics')
+        throw new Error('Kunne ikke hente contacts data')
       }
       
       const result = await response.json()
+      const contacts = result.contacts || []
+      
+      // Calculate metrics from contacts data
+      const totalContacts = contacts.length
+      const uniqueContacts = new Set(contacts.map(c => c.id)).size
+      const recentContacts = contacts.filter(c => {
+        const addedDate = new Date(c.dateAdded)
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        return addedDate > thirtyDaysAgo
+      }).length
+      
+      // Generate chart data from contacts
+      const chartData = generateChartData(contacts)
       
       setData(prev => ({
         ...prev,
-        metrics: result.counts || {},
-        chartData: result.breakdown || [],
+        metrics: {
+          uniqueMessagedContacts: uniqueContacts,
+          totalConversations: totalContacts,
+          outboundMessages: recentContacts
+        },
+        chartData,
         loading: false,
         error: null
       }))
@@ -94,6 +97,24 @@ export function Dashboard({ apiKey, proxyUrl, onLogout }) {
         loading: false
       }))
     }
+  }
+
+  const generateChartData = (contacts) => {
+    // Group contacts by date added for chart
+    const dateGroups = {}
+    contacts.forEach(contact => {
+      const date = new Date(contact.dateAdded).toISOString().split('T')[0]
+      dateGroups[date] = (dateGroups[date] || 0) + 1
+    })
+    
+    // Convert to chart format
+    return Object.entries(dateGroups)
+      .sort(([a], [b]) => new Date(a) - new Date(b))
+      .slice(-30) // Last 30 days
+      .map(([date, count]) => ({
+        date: new Date(date).toLocaleDateString('da-DK', { month: 'short', day: 'numeric' }),
+        value: count
+      }))
   }
 
   useEffect(() => {
