@@ -4,17 +4,19 @@ import { Input } from '@/components/ui/input.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Label } from '@/components/ui/label.jsx'
 import { Alert, AlertDescription } from '@/components/ui/alert.jsx'
-import { Loader2, Key, MapPin, Shield } from 'lucide-react'
+import { Loader2, Key, Shield } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 export function LoginForm({ onLogin, isLoading, error }) {
   const [apiKey, setApiKey] = useState('')
-  const [proxyUrl, setProxyUrl] = useState('https://ghl-api-proxy-git-main-marcello-s-projects-1ae7ee8f.vercel.app/api/ghl')
+  
+  // Hardcoded proxy URL - no need for user input
+  const PROXY_URL = 'https://ghl-api-proxy-git-main-marcello-s-projects-1ae7ee8f.vercel.app/api/ghl'
 
   const handleSubmit = (e) => {
     e.preventDefault()
     if (apiKey.trim()) {
-      onLogin(apiKey.trim(), proxyUrl.trim())
+      onLogin(apiKey.trim(), PROXY_URL)
     }
   }
 
@@ -64,24 +66,6 @@ export function LoginForm({ onLogin, isLoading, error }) {
                 />
                 <p className="text-xs text-gray-500">
                   Find din API key i GHL under Settings → API Keys
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="proxyUrl" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  Proxy Server URL
-                </Label>
-                <Input
-                  id="proxyUrl"
-                  type="url"
-                  value={proxyUrl}
-                  onChange={(e) => setProxyUrl(e.target.value)}
-                  className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
-                  required
-                />
-                <p className="text-xs text-gray-500">
-                  Standard proxy server til sikker API kommunikation
                 </p>
               </div>
 
