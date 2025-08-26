@@ -27,6 +27,16 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
     error: null
   })
 
+  const [selectedPeriod, setSelectedPeriod] = useState('30') // Default 30 days
+
+  const timePeriods = [
+    { value: '7', label: 'Sidste 7 dage' },
+    { value: '30', label: 'Sidste 30 dage' },
+    { value: '90', label: 'Sidste 90 dage' },
+    { value: '180', label: 'Sidste 6 måneder' },
+    { value: '365', label: 'Sidste år' }
+  ]
+
   const fetchLocations = async () => {
     try {
       // Skip locations fetch since we have locationId directly
@@ -67,17 +77,19 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
       const result = await response.json()
       const contacts = result.contacts || []
       
-      // Calculate metrics from contacts data
+      // Calculate metrics from contacts data based on selected period
+      const periodDays = parseInt(selectedPeriod)
+      const periodStart = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000)
+      
       const totalContacts = contacts.length
       const uniqueContacts = new Set(contacts.map(c => c.id)).size
       const recentContacts = contacts.filter(c => {
         const addedDate = new Date(c.dateAdded)
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-        return addedDate > thirtyDaysAgo
+        return addedDate > periodStart
       }).length
       
-      // Generate chart data from contacts
-      const chartData = generateChartData(contacts)
+      // Generate chart data from contacts for selected period
+      const chartData = generateChartData(contacts, periodDays)
       
       setData(prev => ({
         ...prev,
@@ -99,10 +111,17 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
     }
   }
 
-  const generateChartData = (contacts) => {
+  const generateChartData = (contacts, periodDays = 30) => {
+    // Filter contacts to selected period
+    const periodStart = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000)
+    const filteredContacts = contacts.filter(contact => {
+      const addedDate = new Date(contact.dateAdded)
+      return addedDate > periodStart
+    })
+    
     // Group contacts by date added for chart
     const dateGroups = {}
-    contacts.forEach(contact => {
+    filteredContacts.forEach(contact => {
       const date = new Date(contact.dateAdded).toISOString().split('T')[0]
       dateGroups[date] = (dateGroups[date] || 0) + 1
     })
@@ -110,7 +129,6 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
     // Convert to chart format
     return Object.entries(dateGroups)
       .sort(([a], [b]) => new Date(a) - new Date(b))
-      .slice(-30) // Last 30 days
       .map(([date, count]) => ({
         date: new Date(date).toLocaleDateString('da-DK', { month: 'short', day: 'numeric' }),
         value: count
@@ -121,17 +139,28 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
     fetchLocations()
   }, [])
 
+  useEffect(() => {
+    // Refresh data when period changes
+    if (data.selectedLocation && !data.loading) {
+      fetchMetrics(data.selectedLocation.id)
+    }
+  }, [selectedPeriod])
+
   const handleRefresh = () => {
     if (data.selectedLocation) {
       fetchMetrics(data.selectedLocation.id)
     }
   }
 
+  const handlePeriodChange = (period) => {
+    setSelectedPeriod(period)
+  }
+
   const kpiCards = [
     {
       title: 'Unikke Kontakter',
       value: data.metrics?.uniqueMessagedContacts || 0,
-      description: 'Antal leads skrevet til',
+      description: 'Total antal kontakter',
       icon: Users,
       color: 'from-blue-500 to-blue-600',
       bgColor: 'bg-blue-50',
@@ -139,8 +168,8 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
     },
     {
       title: 'Samtaler',
-      value: data.metrics?.conversationsReplied || 0,
-      description: 'Antal der har svaret',
+      value: data.metrics?.totalConversations || 0,
+      description: 'Total antal kontakter',
       icon: MessageCircle,
       color: 'from-green-500 to-green-600',
       bgColor: 'bg-green-50',
@@ -148,9 +177,9 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
     },
     {
       title: 'Beskeder Sendt',
-      value: data.metrics?.totalOutboundMessages || 0,
-      description: 'Totale udgående beskeder',
-      icon: Activity,
+      value: data.metrics?.outboundMessages || 0,
+      description: `Nye kontakter (${timePeriods.find(p => p.value === selectedPeriod)?.label.toLowerCase()})`,
+      icon: TrendingUp,
       color: 'from-purple-500 to-purple-600',
       bgColor: 'bg-purple-50',
       textColor: 'text-purple-700'
@@ -190,6 +219,22 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
             </div>
             
             <div className="flex items-center space-x-3">
+              {/* Time Period Selector */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Periode:</label>
+                <select
+                  value={selectedPeriod}
+                  onChange={(e) => handlePeriodChange(e.target.value)}
+                  className="text-sm border border-gray-300 rounded-md px-3 py-1 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {timePeriods.map(period => (
+                    <option key={period.value} value={period.value}>
+                      {period.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
               <Button
                 variant="outline"
                 size="sm"
@@ -269,7 +314,7 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
                 Aktivitet Over Tid
               </CardTitle>
               <CardDescription>
-                Daglig oversigt over udgående beskeder (sidste 30 dage)
+                Daglig oversigt over nye kontakter ({timePeriods.find(p => p.value === selectedPeriod)?.label.toLowerCase()})
               </CardDescription>
             </CardHeader>
             <CardContent>
