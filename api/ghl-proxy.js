@@ -24,16 +24,25 @@ export default async function handler(req, res) {
     const BASE_URL = 'https://services.leadconnectorhq.com';
     const VERSION = '2021-07-28';
     
+    // Extract location_id from JWT token
+    let locationId;
+    try {
+      const payload = JSON.parse(atob(apiKey.split('.')[1]));
+      locationId = payload.location_id;
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid API key format' });
+    }
+    
     let ghlUrl;
     switch (endpoint) {
-      case 'locations':
-        ghlUrl = `${BASE_URL}/locations/`;
+      case 'contacts':
+        ghlUrl = `${BASE_URL}/contacts/?locationId=${locationId}`;
         break;
       case 'calendars':
-        ghlUrl = `${BASE_URL}/calendars/`;
+        ghlUrl = `${BASE_URL}/calendars/?locationId=${locationId}`;
         break;
       case 'appointments':
-        ghlUrl = `${BASE_URL}/calendars/events/`;
+        ghlUrl = `${BASE_URL}/calendars/events/?locationId=${locationId}`;
         break;
       default:
         return res.status(400).json({ error: 'Invalid endpoint' });

@@ -17,7 +17,7 @@ function App() {
     
     try {
       // Test API connection using serverless function
-      const response = await fetch(`${proxyUrl}?endpoint=locations`, {
+      const response = await fetch(`${proxyUrl}?endpoint=contacts`, {
         headers: { 'x-api-key': apiKey }
       })
       
