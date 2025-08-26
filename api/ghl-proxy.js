@@ -21,8 +21,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    const BASE_URL = 'https://services.leadconnectorhq.com';
-    const VERSION = '2021-07-28';
+    // Use different base URLs based on token type
+    let BASE_URL, VERSION;
+    
+    if (apiKey.startsWith('pit-')) {
+      // Private Integration Tokens use the new API
+      BASE_URL = 'https://services.leadconnectorhq.com';
+      VERSION = '2021-07-28';
+    } else {
+      // JWT tokens might use different API
+      BASE_URL = 'https://services.leadconnectorhq.com';
+      VERSION = '2021-07-28';
+    }
     
     // Check if it's a Private Integration Token (starts with 'pit-')
     let locationId;
@@ -46,7 +56,7 @@ export default async function handler(req, res) {
         if (locationId) {
           ghlUrl = `${BASE_URL}/contacts/?locationId=${locationId}`;
         } else {
-          // Try to get locations first
+          // Try to get locations first to find available location IDs
           ghlUrl = `${BASE_URL}/locations/search`;
         }
         break;
@@ -72,12 +82,13 @@ export default async function handler(req, res) {
     }
 
     const response = await fetch(ghlUrl, {
-      method: req.method,
+      method: endpoint === 'locations' ? 'POST' : req.method,
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Version': VERSION,
         'Content-Type': 'application/json'
-      }
+      },
+      body: endpoint === 'locations' ? JSON.stringify({}) : undefined
     });
 
     const data = await response.json();
