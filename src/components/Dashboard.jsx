@@ -39,11 +39,28 @@ export function Dashboard({ apiKey, proxyUrl, locationId, onLogout }) {
 
   const fetchLocations = async () => {
     try {
-      // Skip locations fetch since we have locationId directly
+      // Fetch location information to get business name
+      const locationResponse = await fetch(`${proxyUrl}?endpoint=locations`, {
+        headers: { 'x-api-key': apiKey }
+      })
+      
+      let locationName = 'Current Location'
+      
+      if (locationResponse.ok) {
+        const locationResult = await locationResponse.json()
+        const locations = locationResult.locations || locationResult.items || []
+        
+        // Find the specific location by ID
+        const currentLocation = locations.find(loc => loc.id === locationId)
+        if (currentLocation) {
+          locationName = currentLocation.name || currentLocation.businessName || currentLocation.companyName || 'Current Location'
+        }
+      }
+      
       setData(prev => ({
         ...prev,
-        locations: [{ id: locationId, name: 'Current Location' }],
-        selectedLocation: { id: locationId, name: 'Current Location' },
+        locations: [{ id: locationId, name: locationName }],
+        selectedLocation: { id: locationId, name: locationName },
         loading: false
       }))
       
