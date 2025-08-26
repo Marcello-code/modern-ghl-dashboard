@@ -16,13 +16,14 @@ function App() {
     setAuth(prev => ({ ...prev, loading: true, error: null }))
     
     try {
-      // Test API connection
-      const response = await fetch(`${proxyUrl}/locations`, {
+      // Test API connection using serverless function
+      const response = await fetch(`${proxyUrl}?endpoint=locations`, {
         headers: { 'x-api-key': apiKey }
       })
       
       if (!response.ok) {
-        throw new Error('Ugyldig API key eller proxy URL')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Ugyldig API key')
       }
       
       setAuth({

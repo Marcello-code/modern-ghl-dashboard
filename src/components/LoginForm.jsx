@@ -10,8 +10,8 @@ import { motion } from 'framer-motion'
 export function LoginForm({ onLogin, isLoading, error }) {
   const [apiKey, setApiKey] = useState('')
   
-  // Hardcoded proxy URL - no need for user input
-  const PROXY_URL = 'https://ghl-api-proxy-git-main-marcello-s-projects-1ae7ee8f.vercel.app/api/ghl'
+  // Use Vercel serverless function for proxy
+  const PROXY_URL = '/api/ghl-proxy'
 
   const handleSubmit = (e) => {
     e.preventDefault()
